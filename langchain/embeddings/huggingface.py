@@ -6,12 +6,14 @@ from pydantic import BaseModel, Extra
 from langchain.embeddings.base import Embeddings
 
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-
+MODEL_LIST = [DEFAULT_MODEL_NAME,
+              "hkunlp/instructor-large"]
 
 class HuggingFaceEmbeddings(BaseModel, Embeddings):
     """Wrapper around sentence_transformers embedding models.
 
-    To use, you should have the ``sentence_transformers`` python package installed.
+    To use sentence transformers, you should have the ``sentence_transformers`` python package installed. 
+    To use Instructor, you should have ``InstructorEmbedding`` python package installed.
 
     Example:
         .. code-block:: python
@@ -28,15 +30,27 @@ class HuggingFaceEmbeddings(BaseModel, Embeddings):
     def __init__(self, **kwargs: Any):
         """Initialize the sentence_transformer."""
         super().__init__(**kwargs)
-        try:
-            import sentence_transformers
+        
+        if (self.model_name == DEFAULT_MODEL_NAME):
+            try:
+                import sentence_transformers
 
-            self.client = sentence_transformers.SentenceTransformer(self.model_name)
-        except ImportError:
-            raise ValueError(
-                "Could not import sentence_transformers python package. "
-                "Please install it with `pip install sentence_transformers`."
-            )
+                self.client = sentence_transformers.SentenceTransformer(self.model_name)
+            except ImportError:
+                raise ValueError(
+                    "Could not import sentence_transformers python package. "
+                    "Please install it with `pip install sentence_transformers`."
+                )
+        elif ("instructor" in self.model_name):
+            try:
+                from InstructorEmbedding import INSTRUCTOR
+
+                self.client = INSTRUCTOR(self.model_name)
+            except ImportError:
+                raise ValueError(
+                    "Could not import InstructorEmbedding python package. "
+                    "Please install it with `pip install InstructorEmbedding`."
+                )
 
     class Config:
         """Configuration for this pydantic object."""
@@ -54,7 +68,7 @@ class HuggingFaceEmbeddings(BaseModel, Embeddings):
         """
         texts = list(map(lambda x: x.replace("\n", " "), texts))
         embeddings = self.client.encode(texts)
-        return embeddings.tolist()
+        return embeddings
 
     def embed_query(self, text: str) -> List[float]:
         """Compute query embeddings using a HuggingFace transformer model.
@@ -67,4 +81,4 @@ class HuggingFaceEmbeddings(BaseModel, Embeddings):
         """
         text = text.replace("\n", " ")
         embedding = self.client.encode(text)
-        return embedding.tolist()
+        return embedding
